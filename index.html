@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>還債倒數帳本</title>
+<meta name="theme-color" content="#1F3A34">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --ink:#1F3A34; --ink-2:#2A4A42;
+    --cream:#F5F0E3; --cream-2:#EFE8D6;
+    --sage:#7C9885; --brass:#B08D57; --brass-light:#D8BD8E;
+    --stamp:#A13D3D; --charcoal:#2B2B28;
+    --line:rgba(43,43,40,0.14);
+    --serif:"Noto Serif TC","Songti TC","Times New Roman",serif;
+    --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+    --mono:"SF Mono","Roboto Mono","Courier New",monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--cream);color:var(--charcoal);font-family:var(--sans);min-height:100vh;padding-bottom:90px;}
+  header{background:var(--ink);color:var(--brass-light);padding:28px 20px 22px;position:relative;box-shadow:0 6px 14px rgba(31,58,52,0.25);}
+  header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:linear-gradient(90deg,var(--brass),transparent 70%);}
+  .brand{display:flex;align-items:baseline;justify-content:space-between;gap:12px;max-width:720px;margin:0 auto;}
+  .brand h1{font-family:var(--serif);font-weight:700;font-size:1.5rem;color:var(--cream);margin:0;letter-spacing:0.04em;}
+  .eyebrow{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.18em;color:var(--brass);text-transform:uppercase;display:block;margin-bottom:4px;}
+  .icon-btn{width:40px;height:40px;border-radius:50%;border:1px solid rgba(216,189,142,0.5);background:rgba(245,240,227,0.06);color:var(--brass-light);font-size:1.1rem;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+  main{max-width:720px;margin:0 auto;padding:20px 16px 0;}
+
+  .summary-strip{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px;}
+  .summary-cell{background:var(--cream-2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;text-align:center;}
+  .summary-cell .label{font-size:0.68rem;color:var(--sage);letter-spacing:0.08em;}
+  .summary-cell .value{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:1.08rem;font-weight:700;color:var(--ink);margin-top:2px;line-height:1.5;}
+  .summary-cell .note{font-size:0.68rem;color:var(--sage);font-family:var(--mono);}
+
+  .group-title{font-family:var(--serif);font-size:0.9rem;color:var(--sage);letter-spacing:0.06em;margin:0 0 8px;}
+  .group-wrap{margin-bottom:20px;}
+  .group-card{background:var(--cream-2);border:1px solid var(--line);border-radius:6px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .group-card .name{font-family:var(--serif);font-weight:700;color:var(--ink);font-size:0.95rem;}
+  .group-card .years{font-family:var(--mono);font-size:0.8rem;color:var(--stamp);}
+  .group-card .amounts{font-family:var(--mono);font-size:0.78rem;text-align:right;line-height:1.6;font-variant-numeric:tabular-nums;}
+  .group-card .amounts .k{color:var(--sage);margin-right:6px;}
+
+  .empty-state{text-align:center;padding:60px 20px;color:var(--sage);border:1px dashed var(--line);border-radius:8px;background:var(--cream-2);}
+  .empty-state h2{font-family:var(--serif);color:var(--ink);font-size:1.15rem;margin-bottom:6px;}
+
+  .debt-card{background:#FFFFFC;border:1px solid var(--line);border-left:5px solid var(--ink);border-radius:8px;margin-bottom:16px;padding:16px;box-shadow:0 2px 4px rgba(43,43,40,0.05);}
+  .debt-card.done{border-left-color:var(--sage);opacity:0.85;}
+  .card-top{display:flex;gap:14px;align-items:flex-start;}
+  .rings{flex:0 0 auto;}
+  .card-info{flex:1;min-width:0;}
+  .card-info h3{font-family:var(--serif);font-size:1.08rem;margin:0 0 2px;color:var(--ink);}
+  .card-info .sub{font-size:0.75rem;color:var(--sage);margin-bottom:8px;line-height:1.5;}
+  .tag{display:inline-block;font-family:var(--mono);font-size:0.65rem;border:1px solid var(--brass);color:var(--brass);border-radius:20px;padding:1px 8px;margin:0 4px 6px 0;}
+  .tag.warn{border-color:var(--stamp);color:var(--stamp);}
+  .stat-row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;font-size:0.8rem;margin-bottom:4px;}
+  .stat-row .k{color:var(--sage);}
+  .stat-row .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:700;color:var(--charcoal);text-align:right;}
+  .progress-track{margin-top:12px;height:6px;border-radius:3px;background:var(--cream-2);overflow:hidden;border:1px solid var(--line);}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--brass),var(--brass-light));}
+  .card-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line);font-size:0.78rem;}
+  .card-actions button{background:none;border:1px solid var(--line);color:var(--ink);padding:5px 12px;border-radius:5px;cursor:pointer;font-family:var(--sans);}
+  .card-actions .danger{color:var(--stamp);border-color:rgba(161,61,61,0.4);}
+  .schedule-wrap{margin-top:12px;max-height:0;overflow:hidden;transition:max-height .25s ease;}
+  .schedule-wrap.open{max-height:420px;overflow:auto;}
+  .schedule-table{width:100%;border-collapse:collapse;font-size:0.74rem;min-width:440px;}
+  .schedule-table th{text-align:right;font-weight:600;color:var(--sage);padding:6px 6px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#FFFFFC;}
+  .schedule-table th:first-child,.schedule-table td:first-child{text-align:left;}
+  .schedule-table td{padding:5px 6px;border-bottom:1px dotted var(--line);font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;}
+  .schedule-table tr.paid td{color:var(--sage);}
+  .schedule-table tr.next td{color:var(--stamp);font-weight:700;}
+  .pp{color:var(--brass);font-size:0.68rem;}
+
+  .fab{position:fixed;right:20px;bottom:24px;width:56px;height:56px;border-radius:50%;background:var(--ink);color:var(--brass-light);border:none;font-size:1.6rem;box-shadow:0 6px 16px rgba(31,58,52,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;}
+  .modal-overlay{position:fixed;inset:0;background:rgba(31,58,52,0.45);display:none;align-items:flex-end;justify-content:center;z-index:50;}
+  .modal-overlay.open{display:flex;}
+  @media(min-width:640px){.modal-overlay{align-items:center;}}
+  .modal{background:var(--cream);width:100%;max-width:480px;border-radius:14px 14px 0 0;padding:22px 20px 26px;max-height:90vh;overflow-y:auto;}
+  @media(min-width:640px){.modal{border-radius:12px;}}
+  .modal h2{font-family:var(--serif);color:var(--ink);margin:0 0 16px;font-size:1.2rem;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:0.78rem;color:var(--sage);margin-bottom:5px;}
+  .field input,.field select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:0.92rem;background:#FFFFFC;color:var(--charcoal);}
+  .field input:focus,.field select:focus{outline:2px solid var(--brass);outline-offset:1px;}
+  .field-row{display:flex;gap:10px;}
+  .field-row .field{flex:1;min-width:0;}
+  .modal-actions{display:flex;gap:10px;margin-top:18px;}
+  .btn-primary{flex:1;background:var(--ink);color:var(--cream);border:none;padding:11px;border-radius:7px;font-size:0.92rem;cursor:pointer;font-weight:600;}
+  .btn-secondary{background:none;border:1px solid var(--line);color:var(--charcoal);padding:11px 16px;border-radius:7px;cursor:pointer;font-size:0.92rem;}
+  .hint{font-size:0.72rem;color:var(--sage);margin:-8px 0 14px;line-height:1.5;}
+  .stepper{display:flex;align-items:center;gap:10px;}
+  .stepper button{width:32px;height:32px;border-radius:6px;border:1px solid var(--line);background:var(--cream-2);font-size:1rem;cursor:pointer;color:var(--ink);}
+  .stepper span{font-family:var(--mono);font-size:1rem;min-width:32px;text-align:center;}
+  .settings-section{margin-bottom:20px;}
+  .settings-section h3{font-family:var(--serif);font-size:0.95rem;color:var(--ink);margin:0 0 8px;}
+  .settings-section .desc{font-size:0.76rem;color:var(--sage);margin-bottom:10px;line-height:1.6;}
+  .settings-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .settings-btns button{background:var(--cream-2);border:1px solid var(--line);color:var(--ink);padding:8px 12px;border-radius:6px;font-size:0.8rem;cursor:pointer;}
+  .pp-list{margin:0 0 14px;padding:0;list-style:none;}
+  .pp-list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--cream-2);border:1px solid var(--line);border-radius:6px;margin-bottom:6px;font-size:0.8rem;}
+  .pp-list .m{font-family:var(--mono);}
+  .pp-list button{background:none;border:none;color:var(--stamp);cursor:pointer;font-size:0.8rem;}
+  #toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--cream);padding:9px 18px;border-radius:20px;font-size:0.8rem;opacity:0;transition:all .25s;pointer-events:none;z-index:60;white-space:nowrap;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div><span class="eyebrow">Debt Ledger</span><h1>還債倒數帳本</h1></div>
+    <button class="icon-btn" id="btnSettings" title="設定" aria-label="設定">⚙</button>
+  </div>
+</header>
+
+<main>
+  <div class="summary-strip" id="summaryStrip"></div>
+  <div id="groupSummary"></div>
+  <div id="debtList"></div>
+  <div class="empty-state" id="emptyState" style="display:none;"></div>
+</main>
+
+<button class="fab" id="btnAdd" title="新增債務" aria-label="新增債務">＋</button>
+
+<!-- 新增／編輯債務 -->
+<div class="modal-overlay" id="debtModalOverlay">
+  <div class="modal">
+    <h2 id="debtModalTitle">新增債務</h2>
+    <form id="debtForm">
+      <div class="field-row">
+        <div class="field"><label for="d_name">債務名稱</label><input type="text" id="d_name" placeholder="例：房貸" required></div>
+        <div class="field"><label for="d_creditor">債權人／貸款機構</label><input type="text" id="d_creditor" placeholder="例：台灣銀行"></div>
+      </div>
+      <div class="field">
+        <label for="d_method">還款方式</label>
+        <select id="d_method">
+          <option value="annuity">本息平均攤還（每期還款額固定）</option>
+          <option value="equalPrincipal">本金平均攤還（每期本金固定，利息遞減）</option>
+          <option value="noInterest">不計利息（每期固定金額）</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="d_principal">貸款本金（元）</label><input type="number" id="d_principal" min="1" step="1" required></div>
+        <div class="field" id="rateField"><label for="d_rate">年利率（%）</label><input type="number" id="d_rate" min="0" max="100" step="0.001" value="0"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="d_start">起貸日</label><input type="date" id="d_start" required></div>
+        <div class="field"><label for="d_first">首期還款日</label><input type="date" id="d_first" required></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label for="d_months">貸款期數（月）</label><input type="number" id="d_months" min="1" step="1" required></div>
+        <div class="field"><label for="d_grace">寬限期（月）</label><input type="number" id="d_grace" min="0" step="1" value="0"></div>
+      </div>
+      <p class="hint" id="monthsHint">貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。</p>
+      <div class="field">
+        <label>已繳期數</label>
+        <div class="stepper">
+          <button type="button" id="paidMinus">－</button><span id="paidDisplay">0</span><button type="button" id="paidPlus">＋</button>
+          <span style="font-size:0.75rem;color:var(--sage);" id="paidOfTotal">／共 0 期</span>
+        </div>
+      </div>
+      <p class="hint">新增時會依首期還款日自動推算到今天已還幾期，可再手動微調。提前還款請儲存後，於卡片上的「提前還款」按鈕另外登錄。</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="debtCancel">取消</button>
+        <button type="submit" class="btn-primary">儲存</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- 提前還款 -->
+<div class="modal-overlay" id="ppModalOverlay">
+  <div class="modal">
+    <h2 id="ppTitle">提前還款</h2>
+    <ul class="pp-list" id="ppList"></ul>
+    <div class="field-row">
+      <div class="field"><label for="p_date">提前還款日</label><input type="date" id="p_date"></div>
+      <div class="field"><label for="p_amount">提前還款本金（元）</label><input type="number" id="p_amount" min="1" step="1"></div>
+    </div>
+    <div class="field">
+      <label for="p_mode">提前還款後</label>
+      <select id="p_mode">
+        <option value="shorten">縮短期數（每期還款額不變，提早還清）</option>
+        <option value="reduce">降低每期還款額（到期日不變）</option>
+      </select>
+    </div>
+    <p class="hint">登錄後會重新試算剩餘期數、利息與到期日。</p>
+    <div class="modal-actions">
+      <button type="button" class="btn-secondary" id="ppClose">關閉</button>
+      <button type="button" class="btn-primary" id="ppAdd">登錄提前還款</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定 -->
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>設定</h2>
+    <div class="settings-section">
+      <h3>Google Sheet 同步</h3>
+      <div class="desc">資料存在你的 Google Sheet「Debts」分頁（與儲蓄倒數帳本共用同一份試算表與同一組網址、密鑰）。沒有網路就無法讀取資料。</div>
+      <div class="field"><label for="f_apiUrl">Apps Script Web App 網址</label><input type="url" id="f_apiUrl" placeholder="https://script.google.com/macros/s/.../exec"></div>
+      <div class="field"><label for="f_apiKey">密鑰</label><input type="text" id="f_apiKey" placeholder="跟 Code.gs 裡的 SECRET_KEY 一致"></div>
+      <button type="button" class="btn-primary" id="btnSaveApi">儲存並重新連線</button>
+      <div id="apiStatus" style="font-size:0.75rem;color:var(--sage);margin-top:8px;"></div>
+    </div>
+    <div class="settings-section">
+      <h3>本機備份（選用）</h3>
+      <div class="desc">匯出目前資料存成 JSON；匯入會整批覆蓋 Sheet 上的債務資料，請小心使用。</div>
+      <div class="settings-btns">
+        <button type="button" id="btnExport">匯出目前資料</button>
+        <button type="button" id="btnImport">匯入並覆蓋 Sheet</button>
+        <input type="file" id="fileImport" accept="application/json" style="display:none;">
+      </div>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn-primary" id="settingsClose">關閉</button></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ===== 共用試算引擎（前端與 Apps Script 使用同一份） ===== */
+function pad2_(n) { return (n < 10 ? '0' : '') + n; }
+function parseYMD_(s) { var p = String(s).slice(0, 10).split('-'); return { y: +p[0], m: +p[1], d: +p[2] }; }
+function addMonthsStr_(s, n) {
+  var o = parseYMD_(s);
+  var idx = (o.y * 12 + (o.m - 1)) + n;
+  var y = Math.floor(idx / 12), m = idx % 12 + 1;
+  var last = new Date(y, m, 0).getDate();
+  return y + '-' + pad2_(m) + '-' + pad2_(Math.min(o.d, last));
+}
+// 某日期之前（含當天）已經過了幾個還款日
+function periodsBefore_(firstPayDate, dateStr, maxN) {
+  var k = 0;
+  while (k < maxN && addMonthsStr_(firstPayDate, k) <= dateStr) k++;
+  return k;
+}
+
+// 逐期試算還款明細。debt 欄位：principal, annualRate, repayMethod(annuity|equalPrincipal|noInterest),
+// totalMonths, graceMonths, firstPayDate(yyyy-mm-dd), prepayments[{date, amount, mode(shorten|reduce)}]
+function computeSchedule_(d) {
+  var N = Math.max(1, Math.round(Number(d.totalMonths) || 1));
+  var g = Math.min(Math.max(0, Math.round(Number(d.graceMonths) || 0)), N - 1);
+  var noInt = d.repayMethod === 'noInterest';
+  var r = noInt ? 0 : (Number(d.annualRate) || 0) / 100 / 12;
+  var useEqual = d.repayMethod === 'equalPrincipal' || r === 0;
+  var principal = Number(d.principal) || 0;
+
+  var pre = {};
+  (d.prepayments || []).forEach(function (p) {
+    var amt = Number(p.amount) || 0;
+    if (amt <= 0 || !p.date) return;
+    var k = periodsBefore_(d.firstPayDate, p.date, N);
+    (pre[k] = pre[k] || []).push({ amount: amt, mode: p.mode === 'reduce' ? 'reduce' : 'shorten' });
+  });
+
+  var balance = principal, rows = [];
+  var totalInterest = 0, totalPayments = 0, totalPrepay = 0;
+  var needSetup = true, pay = 0, prin = 0;
+
+  var startPrepay = 0;
+  (pre[0] || []).forEach(function (p) {
+    var a = Math.min(p.amount, balance); balance -= a; startPrepay += a;
+  });
+  totalPrepay += startPrepay;
+  var startBalance = balance;
+
+  for (var i = 1; i <= N && balance > 0; i++) {
+    var interest = Math.round(balance * r);
+    var principalPart, payment;
+    if (i <= g) {
+      principalPart = 0; payment = interest;
+    } else {
+      var m = N - i + 1;
+      if (needSetup) {
+        if (useEqual) prin = Math.round(balance / m);
+        else pay = Math.round(balance * r / (1 - Math.pow(1 + r, -m)));
+        needSetup = false;
+      }
+      principalPart = useEqual ? Math.min(prin, balance) : Math.min(Math.max(pay - interest, 0), balance);
+      if (i === N) principalPart = balance;
+      payment = principalPart + interest;
+    }
+    balance -= principalPart;
+    var row = { index: i, date: addMonthsStr_(d.firstPayDate, i - 1), payment: payment, interest: interest, principal: principalPart, prepay: 0, balance: balance };
+    totalInterest += interest; totalPayments += payment;
+    (pre[i] || []).forEach(function (p) {
+      var a = Math.min(p.amount, balance);
+      if (a <= 0) return;
+      balance -= a; row.prepay += a; totalPrepay += a;
+      if (p.mode === 'reduce') needSetup = true;
+    });
+    row.balance = balance;
+    rows.push(row);
+  }
+  return {
+    rows: rows, N: N, g: g, startBalance: startBalance, startPrepay: startPrepay,
+    totalInterest: totalInterest, totalPayments: totalPayments, totalPrepay: totalPrepay,
+    totalPayable: totalPayments + totalPrepay
+  };
+}
+
+function debtStats_(d) {
+  var s = computeSchedule_(d), rows = s.rows, total = rows.length;
+  var p = Math.min(Math.max(0, Math.round(Number(d.paidCount) || 0)), total);
+  var paidPayments = 0, paidInterest = 0, i, j;
+  for (i = 0; i < p; i++) { paidPayments += rows[i].payment; paidInterest += rows[i].interest; }
+  var futurePrepay = 0;
+  for (j = p; j < total; j++) futurePrepay += rows[j].prepay;
+  var balanceAtP = p === 0 ? s.startBalance : rows[p - 1].balance;
+  var principal = Number(d.principal) || 0;
+  var remainingPrincipal = total === 0 ? 0 : Math.max(0, balanceAtP - futurePrepay);
+  var paidAmount = paidPayments + s.totalPrepay;
+  var remainingPeriods = total - p;
+  return {
+    rows: rows, total: total, paid: p, grace: s.g,
+    totalInterest: s.totalInterest, paidInterest: paidInterest, remainingInterest: s.totalInterest - paidInterest,
+    totalPayable: s.totalPayable, paidAmount: paidAmount, remainingAmount: s.totalPayable - paidAmount,
+    remainingPrincipal: remainingPrincipal, paidPrincipal: principal - remainingPrincipal,
+    remainingPeriods: remainingPeriods, remainingYears: Math.round(remainingPeriods / 12 * 10) / 10,
+    endDate: total > 0 ? rows[total - 1].date : d.firstPayDate,
+    nextRow: p < total ? rows[p] : null,
+    done: p >= total, inGrace: p < s.g, totalPrepay: s.totalPrepay
+  };
+}
+
+
+const METHODS = { annuity:'本息平均攤還', equalPrincipal:'本金平均攤還', noInterest:'不計利息' };
+const API_URL_KEY = 'debtLedger.apiUrl.v1', API_KEY_KEY = 'debtLedger.apiKey.v1';
+// 若與「儲蓄倒數帳本」部署在同一個網域，沿用它已存好的網址與密鑰，省去重填
+const SHARED_URL_KEY = 'savingsPassbook.apiUrl.v1', SHARED_KEY_KEY = 'savingsPassbook.apiKey.v1';
+const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbwg8xGJLInkA-QmBe1_EoqmSCcWeqYAkZOYZEhZIZAPADVkHuY6FU-LymBW8MIXW-m-/exec';
+
+let apiUrl = localStorage.getItem(API_URL_KEY) || localStorage.getItem(SHARED_URL_KEY) || DEFAULT_URL;
+let apiKey = localStorage.getItem(API_KEY_KEY) || localStorage.getItem(SHARED_KEY_KEY) || '';
+let debts = [];
+let editingId = null, ppDebtId = null, openScheduleId = null, isSyncing = false;
+let currentPaid = 0, firstDateTouched = false;
+
+const $ = (id)=>document.getElementById(id);
+const fmt = (n)=>'$' + Math.round(n).toLocaleString('en-US');
+const fmtD = (s)=>String(s).slice(0,10).replace(/-/g,'/');
+const fmtYM = (s)=>String(s).slice(0,7).replace('-','/');
+function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+function uid(){ return 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function todayStr(){ const t=new Date(); return t.getFullYear()+'-'+pad2_(t.getMonth()+1)+'-'+pad2_(t.getDate()); }
+let toastTimer=null;
+function toast(msg){ const el=$('toast'); el.textContent=msg; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2200); }
+
+// ---- Google Sheet API（不設 Content-Type，避免 CORS 預檢） ----
+function apiGet(action){
+  if (!apiUrl) return Promise.reject(new Error('尚未設定 Apps Script 網址'));
+  const url = apiUrl + (apiUrl.includes('?')?'&':'?') + 'action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(apiKey);
+  return fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(d=>{ if(d && d.error) throw new Error(d.error); return d; });
+}
+function apiPost(payload){
+  if (!apiUrl) return Promise.reject(new Error('尚未設定 Apps Script 網址'));
+  return fetch(apiUrl, { method:'POST', body: JSON.stringify(Object.assign({key:apiKey}, payload)) })
+    .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+    .then(d=>{ if(d && d.error) throw new Error(d.error); return d; });
+}
+function setApiStatus(msg, isErr){ const el=$('apiStatus'); if(el){ el.textContent=msg; el.style.color = isErr?'var(--stamp)':'var(--sage)'; } }
+
+function syncFromSheet(){
+  if (!apiUrl){ setApiStatus('尚未設定網址', true); render(); return Promise.resolve(); }
+  isSyncing = true; render();
+  return apiGet('listDebts').then(d=>{
+    debts = d.debts || [];
+    setApiStatus('已連線，同步時間 ' + new Date().toLocaleTimeString('zh-TW'));
+  }).catch(err=>{
+    setApiStatus('連線失敗：' + err.message, true);
+    toast('無法連上 Google Sheet，請檢查網址、密鑰或網路');
+  }).finally(()=>{ isSyncing=false; render(); });
+}
+function saveDebt(debt){
+  return apiPost({ action:'upsertDebt', debt }).then(res=>{ debts = res.debts || debts; render(); });
+}
+
+// ---- 畫面 ----
+function ringSVG(st, principal){
+  const size=88, c=size/2, r=34, circ=2*Math.PI*r;
+  const pct = principal>0 ? Math.max(0, Math.min(1, st.paidPrincipal/principal)) : 0;
+  const center = st.done ? '清' : Math.ceil(st.remainingPeriods/12);
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--cream-2)" stroke-width="9"/>
+    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--brass)" stroke-width="9" stroke-linecap="round"
+      stroke-dasharray="${circ*pct} ${circ}" transform="rotate(-90 ${c} ${c})"/>
+    <text x="${c}" y="${c+3}" text-anchor="middle" font-family="var(--serif)" font-size="19" font-weight="700" fill="var(--ink)">${center}</text>
+    <text x="${c}" y="${c+16}" text-anchor="middle" font-family="var(--mono)" font-size="8" fill="var(--sage)">${st.done?'':'年'}</text>
+  </svg>`;
+}
+
+function renderSummary(items){
+  const strip=$('summaryStrip'), grp=$('groupSummary');
+  if (!items.length){ strip.innerHTML=''; grp.innerHTML=''; return; }
+  const active = items.filter(x=>!x.s.done);
+  const sum = (arr,f)=>arr.reduce((a,x)=>a+f(x.s),0);
+  let maxYears=null, maxEnd=null;
+  active.forEach(({s})=>{ if(maxYears===null || s.remainingPeriods/12>maxYears){ maxYears=s.remainingPeriods/12; maxEnd=s.endDate; } });
+  strip.innerHTML = `
+    <div class="summary-cell"><div class="label">剩餘本金</div><div class="value">${fmt(sum(items,s=>s.remainingPrincipal))}</div></div>
+    <div class="summary-cell"><div class="label">剩餘未還總額（含利息）</div><div class="value">${fmt(sum(items,s=>s.remainingAmount))}</div></div>
+    <div class="summary-cell"><div class="label">尚餘幾年（最晚到期）</div><div class="value">${maxYears===null?'已全數還清':maxYears.toFixed(1)+' 年'}</div>${maxEnd?`<div class="note">至 ${fmtYM(maxEnd)}</div>`:''}</div>
+    <div class="summary-cell"><div class="label">目前每月還款合計</div><div class="value">${fmt(active.reduce((a,x)=>a+(x.s.nextRow?x.s.nextRow.payment:0),0))}</div></div>`;
+
+  const groups = new Map();
+  items.forEach(it=>{ const k=(it.d.creditor||'').trim()||'（未填寫債權人）'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); });
+  if (groups.size===1 && groups.has('（未填寫債權人）')){ grp.innerHTML=''; return; }
+  let html = '<div class="group-wrap"><div class="group-title">依債權人／貸款機構</div>';
+  groups.forEach((arr,name)=>{
+    const act = arr.filter(x=>!x.s.done);
+    const yrs = act.length ? Math.max(...act.map(x=>x.s.remainingPeriods/12)) : null;
+    html += `<div class="group-card"><div><div class="name">${esc(name)}</div><div class="years">${yrs===null?'已還清':'尚餘 '+yrs.toFixed(1)+' 年'}</div></div>
+      <div class="amounts"><div><span class="k">剩餘本金</span>${fmt(sum(arr,s=>s.remainingPrincipal))}</div><div><span class="k">未還總額</span>${fmt(sum(arr,s=>s.remainingAmount))}</div></div></div>`;
+  });
+  grp.innerHTML = html + '</div>';
+}
+
+function render(){
+  const list=$('debtList'), empty=$('emptyState');
+  const showEmpty = (h,p)=>{ list.innerHTML=''; $('summaryStrip').innerHTML=''; $('groupSummary').innerHTML=''; empty.style.display='block'; empty.innerHTML=`<h2>${h}</h2><p>${p}</p>`; };
+  if (!apiUrl) return showEmpty('尚未連接 Google Sheet','請點右上角「⚙ 設定」貼上 Apps Script 網址與密鑰。');
+  if (isSyncing && !debts.length) return showEmpty('連線中…','正在從 Google Sheet 讀取債務資料。');
+  if (!debts.length) return showEmpty('還沒有任何債務','點右下角「＋」新增第一筆債務，開始倒數。');
+  empty.style.display='none';
+
+  const items = debts.map(d=>({ d, s: debtStats_(d) }));
+  renderSummary(items);
+  items.sort((a,b)=>{
+    const ta = a.s.nextRow ? a.s.nextRow.date : '9999-12-31', tb = b.s.nextRow ? b.s.nextRow.date : '9999-12-31';
+    return ta < tb ? -1 : ta > tb ? 1 : 0;
+  });
+
+  list.innerHTML = items.map(({d,s})=>{
+    const open = openScheduleId === d.id;
+    const hasRate = d.repayMethod !== 'noInterest' && Number(d.annualRate) > 0;
+    const rows = s.rows.map((r,i)=>`<tr class="${i<s.paid?'paid':''} ${i===s.paid?'next':''}">
+      <td>${r.index}</td><td>${fmtD(r.date)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.principal)}</td><td>${fmt(r.interest)}</td>
+      <td>${fmt(r.balance)}${r.prepay?`<div class="pp">提前還 ${fmt(r.prepay)}</div>`:''}</td></tr>`).join('');
+    const ppN = (d.prepayments||[]).length;
+    return `<div class="debt-card ${s.done?'done':''}" data-id="${d.id}">
+      <div class="card-top">
+        <div class="rings">${ringSVG(s, Number(d.principal))}</div>
+        <div class="card-info">
+          <h3>${esc(d.name)}</h3>
+          <div class="sub">${d.creditor?esc(d.creditor)+'．':''}${METHODS[d.repayMethod]||''}${hasRate?'．年利率 '+Number(d.annualRate)+'%':''}．貸款 ${fmt(d.principal)}</div>
+          ${s.inGrace?'<span class="tag warn">寬限期中（僅繳息）</span>':''}${ppN?`<span class="tag">提前還款 ${ppN} 筆</span>`:''}${s.done?'<span class="tag">已還清</span>':''}
+          <div class="stat-row"><span class="k">剩餘</span><span class="v">${s.done?'已還清':s.remainingPeriods+' 期（約 '+s.remainingYears.toFixed(1)+' 年）'}</span></div>
+          <div class="stat-row"><span class="k">債務期間</span><span class="v">${fmtYM(d.startDate||d.firstPayDate)} ～ ${fmtYM(s.endDate)}</span></div>
+          <div class="stat-row"><span class="k">下期還款</span><span class="v">${s.nextRow?fmtD(s.nextRow.date)+'　'+fmt(s.nextRow.payment):'—'}</span></div>
+          <div class="stat-row"><span class="k">剩餘本金</span><span class="v">${fmt(s.remainingPrincipal)}</span></div>
+          <div class="stat-row"><span class="k">已還／應還總額</span><span class="v">${fmt(s.paidAmount)} ／ ${fmt(s.totalPayable)}</span></div>
+          ${hasRate?`<div class="stat-row"><span class="k">利息 已繳／總計</span><span class="v">${fmt(s.paidInterest)} ／ ${fmt(s.totalInterest)}</span></div>`:''}
+          <div class="progress-track"><div class="progress-fill" style="width:${Number(d.principal)>0?Math.min(100,s.paidPrincipal/Number(d.principal)*100):0}%"></div></div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button data-act="schedule">${open?'收合':'還款明細'}</button>
+        <button data-act="prepay">提前還款</button>
+        <button data-act="edit">編輯</button>
+        <button data-act="delete" class="danger">刪除</button>
+      </div>
+      <div class="schedule-wrap ${open?'open':''}"><table class="schedule-table">
+        <thead><tr><th>期別</th><th>日期</th><th>還款額</th><th>本金</th><th>利息</th><th>餘額</th></tr></thead><tbody>${rows}</tbody></table></div>
+    </div>`;
+  }).join('');
+}
+
+$('debtList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button[data-act]'); if(!btn) return;
+  const id = e.target.closest('.debt-card').dataset.id, act = btn.dataset.act;
+  if (act==='schedule'){ openScheduleId = openScheduleId===id ? null : id; render(); }
+  else if (act==='edit') openEdit(id);
+  else if (act==='prepay') openPrepay(id);
+  else if (act==='delete'){
+    const d = debts.find(x=>x.id===id);
+    if (confirm(`確定要刪除「${d.name}」嗎？此動作無法復原。`)){
+      toast('刪除中…');
+      apiPost({ action:'deleteDebt', id }).then(res=>{ debts = res.debts || debts.filter(x=>x.id!==id); render(); toast('已從 Sheet 刪除'); })
+        .catch(err=>toast('刪除失敗：' + err.message));
+    }
+  }
+});
+
+// ---- 新增／編輯 ----
+function formDebt(){
+  return {
+    id: editingId || 'tmp', name: $('d_name').value.trim(), creditor: $('d_creditor').value.trim(),
+    repayMethod: $('d_method').value, principal: parseFloat($('d_principal').value),
+    annualRate: $('d_method').value==='noInterest' ? 0 : (parseFloat($('d_rate').value)||0),
+    startDate: $('d_start').value, firstPayDate: $('d_first').value,
+    totalMonths: parseInt($('d_months').value,10), graceMonths: parseInt($('d_grace').value,10)||0,
+    prepayments: editingId ? ((debts.find(x=>x.id===editingId)||{}).prepayments||[]) : [], paidCount: currentPaid
+  };
+}
+function scheduleLen(d){ return (d.principal>0 && d.totalMonths>0 && d.firstPayDate) ? computeSchedule_(d).rows.length : (d.totalMonths||0); }
+function refreshPaid(){
+  const max = scheduleLen(formDebt());
+  currentPaid = Math.max(0, Math.min(currentPaid, max));
+  $('paidDisplay').textContent = currentPaid; $('paidOfTotal').textContent = `／共 ${max} 期`;
+  const m = parseInt($('d_months').value,10);
+  $('monthsHint').textContent = m>0 ? `貸款期數 ${m} 期 ＝ ${Math.floor(m/12)} 年${m%12?' '+(m%12)+' 個月':''}。寬限期內只繳利息、不還本金。` : '貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。';
+}
+function recomputeDefaultPaid(){
+  if (!editingId){
+    const d = formDebt();
+    if (d.principal>0 && d.totalMonths>0 && d.firstPayDate){
+      const t = todayStr();
+      currentPaid = computeSchedule_(d).rows.filter(r=>r.date<=t).length;
+    }
+  }
+  refreshPaid();
+}
+function toggleRate(){ $('rateField').style.display = $('d_method').value==='noInterest' ? 'none' : ''; }
+
+$('paidMinus').onclick = ()=>{ currentPaid--; refreshPaid(); };
+$('paidPlus').onclick = ()=>{ currentPaid++; refreshPaid(); };
+['d_method','d_principal','d_rate','d_months','d_grace','d_first'].forEach(id=>$(id).addEventListener('input', ()=>{ if(id==='d_first') firstDateTouched=true; if(id==='d_method') toggleRate(); recomputeDefaultPaid(); }));
+$('d_start').addEventListener('change', ()=>{
+  if (!firstDateTouched && $('d_start').value){ $('d_first').value = addMonthsStr_($('d_start').value, 1); }
+  recomputeDefaultPaid();
+});
+
+function openAdd(){
+  editingId=null; firstDateTouched=false; $('debtModalTitle').textContent='新增債務'; $('debtForm').reset();
+  $('d_rate').value=0; $('d_grace').value=0; $('d_start').value=todayStr(); $('d_first').value=addMonthsStr_(todayStr(),1);
+  currentPaid=0; toggleRate(); refreshPaid(); $('debtModalOverlay').classList.add('open');
+}
+function openEdit(id){
+  const d = debts.find(x=>x.id===id); if(!d) return;
+  editingId=id; firstDateTouched=true; $('debtModalTitle').textContent='編輯債務';
+  $('d_name').value=d.name; $('d_creditor').value=d.creditor||''; $('d_method').value=d.repayMethod;
+  $('d_principal').value=d.principal; $('d_rate').value=d.annualRate||0;
+  $('d_start').value=d.startDate; $('d_first').value=d.firstPayDate;
+  $('d_months').value=d.totalMonths; $('d_grace').value=d.graceMonths||0;
+  currentPaid=d.paidCount; toggleRate(); refreshPaid(); $('debtModalOverlay').classList.add('open');
+}
+const closeDebtModal = ()=>$('debtModalOverlay').classList.remove('open');
+$('btnAdd').onclick = openAdd; $('debtCancel').onclick = closeDebtModal;
+$('debtModalOverlay').addEventListener('click', e=>{ if(e.target===$('debtModalOverlay')) closeDebtModal(); });
+
+$('debtForm').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const d = formDebt();
+  if (!d.name || !(d.principal>0) || !d.firstPayDate || !(d.totalMonths>0)) return;
+  if (d.graceMonths >= d.totalMonths){ toast('寬限期必須小於貸款期數'); return; }
+  d.id = editingId || uid();
+  toast('儲存中…');
+  saveDebt(d).then(()=>{ closeDebtModal(); toast('已寫入 Sheet'); }).catch(err=>toast('儲存失敗：' + err.message));
+});
+
+// ---- 提前還款 ----
+function renderPrepayList(){
+  const d = debts.find(x=>x.id===ppDebtId); if(!d) return;
+  $('ppTitle').textContent = `提前還款｜${d.name}`;
+  const list = d.prepayments||[];
+  $('ppList').innerHTML = list.length ? list.map((p,i)=>`<li><span>${fmtD(p.date)}　<span class="m">${fmt(p.amount)}</span>　${p.mode==='reduce'?'降低每期還款額':'縮短期數'}</span><button data-i="${i}">刪除</button></li>`).join('')
+    : '<li style="justify-content:center;color:var(--sage);">尚無提前還款紀錄</li>';
+}
+function openPrepay(id){ ppDebtId=id; $('p_date').value=todayStr(); $('p_amount').value=''; renderPrepayList(); $('ppModalOverlay').classList.add('open'); }
+$('ppClose').onclick = ()=>$('ppModalOverlay').classList.remove('open');
+$('ppModalOverlay').addEventListener('click', e=>{ if(e.target===$('ppModalOverlay')) $('ppModalOverlay').classList.remove('open'); });
+$('ppAdd').onclick = ()=>{
+  const d = debts.find(x=>x.id===ppDebtId); if(!d) return;
+  const date=$('p_date').value, amount=parseFloat($('p_amount').value);
+  if (!date || !(amount>0)){ toast('請填寫日期與金額'); return; }
+  const list = (d.prepayments||[]).concat([{ date, amount, mode:$('p_mode').value }]).sort((a,b)=>a.date<b.date?-1:1);
+  toast('登錄中…');
+  saveDebt(Object.assign({}, d, { prepayments:list })).then(()=>{ renderPrepayList(); $('p_amount').value=''; toast('已登錄並重新試算'); }).catch(err=>toast('登錄失敗：' + err.message));
+};
+$('ppList').addEventListener('click', e=>{
+  const b = e.target.closest('button[data-i]'); if(!b) return;
+  const d = debts.find(x=>x.id===ppDebtId); if(!d) return;
+  const list = (d.prepayments||[]).slice(); list.splice(parseInt(b.dataset.i,10),1);
+  saveDebt(Object.assign({}, d, { prepayments:list })).then(()=>{ renderPrepayList(); toast('已刪除並重新試算'); }).catch(err=>toast('刪除失敗：' + err.message));
+});
+
+// ---- 設定 ----
+$('btnSettings').onclick = ()=>{ $('f_apiUrl').value=apiUrl; $('f_apiKey').value=apiKey; setApiStatus(apiUrl?'已設定網址':'尚未設定'); $('settingsOverlay').classList.add('open'); };
+$('settingsClose').onclick = ()=>$('settingsOverlay').classList.remove('open');
+$('settingsOverlay').addEventListener('click', e=>{ if(e.target===$('settingsOverlay')) $('settingsOverlay').classList.remove('open'); });
+$('btnSaveApi').onclick = ()=>{
+  const url=$('f_apiUrl').value.trim(), key=$('f_apiKey').value.trim();
+  if(!url){ toast('請先貼上網址'); return; }
+  apiUrl=url; apiKey=key; localStorage.setItem(API_URL_KEY,apiUrl); localStorage.setItem(API_KEY_KEY,apiKey);
+  setApiStatus('連線中…'); syncFromSheet();
+};
+$('btnExport').onclick = ()=>{
+  const blob = new Blob([JSON.stringify({ debts }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `還債倒數帳本備份_${todayStr()}.json`; a.click(); URL.revokeObjectURL(a.href); toast('已匯出備份');
+};
+$('btnImport').onclick = ()=>$('fileImport').click();
+$('fileImport').addEventListener('change', (e)=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try{
+      const data = JSON.parse(reader.result);
+      if (!Array.isArray(data.debts)){ toast('檔案格式不正確'); return; }
+      if (!apiUrl){ toast('請先設定 Apps Script 網址'); return; }
+      if (confirm('匯入將會覆蓋 Google Sheet 上所有債務資料，確定要繼續嗎？')){
+        toast('匯入中…');
+        apiPost({ action:'replaceAllDebts', debts:data.debts }).then(res=>{ debts=res.debts||data.debts; render(); toast('匯入成功，已寫入 Sheet'); })
+          .catch(err=>toast('匯入失敗：' + err.message));
+      }
+    }catch(err){ toast('讀取失敗，請確認是正確的備份檔'); }
+  };
+  reader.readAsText(file); e.target.value='';
+});
+
+if ('serviceWorker' in navigator){ window.addEventListener('load', ()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{})); }
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') syncFromSheet(); });
+syncFromSheet();
+})();
+</script>
+</body>
+</html>
