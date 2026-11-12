@@ -1,4 +1,4 @@
-const CACHE_NAME = 'debt-ledger-v1';
+const CACHE_NAME = 'debt-ledger-v3';
 const CORE_ASSETS = [
   './', './index.html', './manifest.json', './icon.svg',
   './icon-192.png', './icon-512.png', './icon-maskable-192.png', './icon-maskable-512.png'

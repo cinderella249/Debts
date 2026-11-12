@@ -103,6 +103,10 @@
   .pp-list li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;background:var(--cream-2);border:1px solid var(--line);border-radius:6px;margin-bottom:6px;font-size:0.8rem;}
   .pp-list .m{font-family:var(--mono);}
   .pp-list button{background:none;border:none;color:var(--stamp);cursor:pointer;font-size:0.8rem;}
+  .hidden{display:none !important;}
+  .note-line{font-size:0.74rem;color:var(--charcoal);background:var(--cream-2);border-left:3px solid var(--brass);padding:4px 8px;margin:0 0 8px;border-radius:0 4px 4px 0;line-height:1.5;}
+  .rate-info{font-family:var(--mono);color:var(--ink);background:var(--cream-2);border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin:-6px 0 14px;font-size:0.74rem;line-height:1.7;}
+  .tag.ok{border-color:var(--sage);color:var(--sage);}
   #toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--ink);color:var(--cream);padding:9px 18px;border-radius:20px;font-size:0.8rem;opacity:0;transition:all .25s;pointer-events:none;z-index:60;white-space:nowrap;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
@@ -135,34 +139,39 @@
         <div class="field"><label for="d_creditor">債權人／貸款機構</label><input type="text" id="d_creditor" placeholder="例：台灣銀行"></div>
       </div>
       <div class="field">
-        <label for="d_method">還款方式</label>
+        <label for="d_method">類型</label>
         <select id="d_method">
-          <option value="annuity">本息平均攤還（每期還款額固定）</option>
-          <option value="equalPrincipal">本金平均攤還（每期本金固定，利息遞減）</option>
-          <option value="noInterest">不計利息（每期固定金額）</option>
+          <option value="annuity">本息攤還（每期還款額固定）</option>
+          <option value="equalPrincipal">本金攤還（每期本金固定，利息遞減）</option>
+          <option value="cash">現金（彈性還款，有錢才還，每次登錄金額）</option>
         </select>
       </div>
       <div class="field-row">
-        <div class="field"><label for="d_principal">貸款本金（元）</label><input type="number" id="d_principal" min="1" step="1" required></div>
-        <div class="field" id="rateField"><label for="d_rate">年利率（%）</label><input type="number" id="d_rate" min="0" max="100" step="0.001" value="0"></div>
+        <div class="field"><label for="d_principal">貸款本金（元）</label><input type="number" id="d_principal" min="1" step="1"></div>
+        <div class="field"><label for="d_first" id="firstLabel">首期還款日</label><input type="date" id="d_first"></div>
       </div>
-      <div class="field-row">
-        <div class="field"><label for="d_start">起貸日</label><input type="date" id="d_start" required></div>
-        <div class="field"><label for="d_first">首期還款日</label><input type="date" id="d_first" required></div>
-      </div>
-      <div class="field-row">
-        <div class="field"><label for="d_months">貸款期數（月）</label><input type="number" id="d_months" min="1" step="1" required></div>
+      <div class="field-row inst-only">
+        <div class="field"><label for="d_months">貸款期數（月）</label><input type="number" id="d_months" min="1" step="1"></div>
         <div class="field"><label for="d_grace">寬限期（月）</label><input type="number" id="d_grace" min="0" step="1" value="0"></div>
       </div>
-      <p class="hint" id="monthsHint">貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。</p>
-      <div class="field">
+      <div class="field cash-only hidden"><label for="d_due">預計還清日（選填，用來換算單利利率）</label><input type="date" id="d_due"></div>
+      <div class="field-row">
+        <div class="field"><label for="d_rate" id="rateLabel">實質年利率（%）</label><input type="number" id="d_rate" min="0" max="100" step="0.0001" placeholder="不知道可留空"></div>
+        <div class="field"><label for="d_interest">利息總額（元）</label><input type="number" id="d_interest" min="0" step="1" placeholder="不知道可留空"></div>
+      </div>
+      <p class="hint" style="margin-top:-8px;">利率與利息總額擇一輸入即可，另一個會自動換算。</p>
+      <div class="rate-info" id="rateInfo"></div>
+      <p class="hint inst-only" id="monthsHint">貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。</p>
+      <div class="field inst-only">
         <label>已繳期數</label>
         <div class="stepper">
           <button type="button" id="paidMinus">－</button><span id="paidDisplay">0</span><button type="button" id="paidPlus">＋</button>
           <span style="font-size:0.75rem;color:var(--sage);" id="paidOfTotal">／共 0 期</span>
         </div>
       </div>
-      <p class="hint">新增時會依首期還款日自動推算到今天已還幾期，可再手動微調。提前還款請儲存後，於卡片上的「提前還款」按鈕另外登錄。</p>
+      <p class="hint inst-only">新增時會依首期還款日自動推算到今天已還幾期，可再手動微調。提前還款請儲存後，於卡片上的「提前還款」按鈕另外登錄。</p>
+      <div class="field"><label for="d_note">備註（選填）</label><input type="text" id="d_note" placeholder="例：每月 5 號自動扣款、合約編號…"></div>
+      <p class="hint cash-only hidden">現金類型沒有固定期數，儲存後請在卡片上的「登錄還款」按鈕，記錄每一次的還款日期與金額。</p>
       <div class="modal-actions">
         <button type="button" class="btn-secondary" id="debtCancel">取消</button>
         <button type="submit" class="btn-primary">儲存</button>
@@ -177,17 +186,17 @@
     <h2 id="ppTitle">提前還款</h2>
     <ul class="pp-list" id="ppList"></ul>
     <div class="field-row">
-      <div class="field"><label for="p_date">提前還款日</label><input type="date" id="p_date"></div>
-      <div class="field"><label for="p_amount">提前還款本金（元）</label><input type="number" id="p_amount" min="1" step="1"></div>
+      <div class="field"><label for="p_date" id="ppDateLabel">提前還款日</label><input type="date" id="p_date"></div>
+      <div class="field"><label for="p_amount" id="ppAmountLabel">提前還款本金（元）</label><input type="number" id="p_amount" min="1" step="1"></div>
     </div>
-    <div class="field">
+    <div class="field" id="ppModeField">
       <label for="p_mode">提前還款後</label>
       <select id="p_mode">
         <option value="shorten">縮短期數（每期還款額不變，提早還清）</option>
         <option value="reduce">降低每期還款額（到期日不變）</option>
       </select>
     </div>
-    <p class="hint">登錄後會重新試算剩餘期數、利息與到期日。</p>
+    <p class="hint" id="ppHint">登錄後會重新試算剩餘期數、利息與到期日。</p>
     <div class="modal-actions">
       <button type="button" class="btn-secondary" id="ppClose">關閉</button>
       <button type="button" class="btn-primary" id="ppAdd">登錄提前還款</button>
@@ -228,7 +237,14 @@
 
 /* ===== 共用試算引擎（前端與 Apps Script 使用同一份） ===== */
 function pad2_(n) { return (n < 10 ? '0' : '') + n; }
-function parseYMD_(s) { var p = String(s).slice(0, 10).split('-'); return { y: +p[0], m: +p[1], d: +p[2] }; }
+function parseYMD_(s) {
+  var str = String(s).trim();
+  var m = str.match(/(\d{2,4})\D+(\d{1,2})\D+(\d{1,2})/) || str.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (!m) return { y: NaN, m: NaN, d: NaN };
+  var y = +m[1];
+  if (m[1].length <= 3 && y < 1911) y = m[1].length === 2 ? 2000 + y : y + 1911; // 民國年
+  return { y: y, m: +m[2], d: +m[3] };
+}
 function addMonthsStr_(s, n) {
   var o = parseYMD_(s);
   var idx = (o.y * 12 + (o.m - 1)) + n;
@@ -307,7 +323,8 @@ function computeSchedule_(d) {
   };
 }
 
-function debtStats_(d) {
+function debtStats_(d, today) {
+  if (d.repayMethod === 'cash') return cashStats_(d, today);
   var s = computeSchedule_(d), rows = s.rows, total = rows.length;
   var p = Math.min(Math.max(0, Math.round(Number(d.paidCount) || 0)), total);
   var paidPayments = 0, paidInterest = 0, i, j;
@@ -327,12 +344,95 @@ function debtStats_(d) {
     remainingPeriods: remainingPeriods, remainingYears: Math.round(remainingPeriods / 12 * 10) / 10,
     endDate: total > 0 ? rows[total - 1].date : d.firstPayDate,
     nextRow: p < total ? rows[p] : null,
-    done: p >= total, inGrace: p < s.g, totalPrepay: s.totalPrepay
+    done: p >= total, inGrace: p < s.g, totalPrepay: s.totalPrepay,
+    effRate: Number(d.annualRate) || 0, flatRate: installmentFlatRate_(d), isCash: false
+  };
+}
+
+/* ---------- 利率 ↔ 利息總額 ---------- */
+function daysBetween_(a, b) {
+  var A = parseYMD_(a), B = parseYMD_(b);
+  return Math.round((Date.UTC(B.y, B.m - 1, B.d) - Date.UTC(A.y, A.m - 1, A.d)) / 86400000);
+}
+
+// 以指定年利率試算「無提前還款」的利息總額（用於換算利率）
+function baselineInterest_(d, rate) {
+  var c = {};
+  for (var k in d) c[k] = d[k];
+  c.annualRate = rate; c.prepayments = [];
+  c.repayMethod = d.repayMethod === 'equalPrincipal' ? 'equalPrincipal' : 'annuity';
+  c.firstPayDate = '2000-01-31';
+  return computeSchedule_(c).totalInterest;
+}
+
+// 已知利息總額 → 反推實質年利率（%），二分法
+function solveRate_(d, target) {
+  target = Number(target) || 0;
+  if (!(target > 0)) return 0;
+  var lo = 0, hi = 100;
+  if (baselineInterest_(d, hi) < target) return hi;
+  for (var i = 0; i < 60; i++) {
+    var mid = (lo + hi) / 2;
+    if (baselineInterest_(d, mid) < target) lo = mid; else hi = mid;
+  }
+  return Math.round((lo + hi) / 2 * 10000) / 10000;
+}
+
+// 平息年利率（%）＝ 利息總額 ÷（本金 × 貸款年數）
+function installmentFlatRate_(d) {
+  var P = Number(d.principal) || 0, N = Number(d.totalMonths) || 0;
+  if (!(P > 0) || !(N > 0)) return 0;
+  var I = baselineInterest_(d, Number(d.annualRate) || 0);
+  return Math.round(I / (P * N / 12) * 100 * 10000) / 10000;
+}
+
+/* ---------- 現金（彈性還款）：單利、不固定期數 ---------- */
+function cashInterest_(d) {
+  var P = Number(d.principal) || 0, r = Number(d.annualRate) || 0;
+  if (r > 0 && d.dueDate && d.firstPayDate) {
+    var days = Math.max(0, daysBetween_(d.firstPayDate, d.dueDate));
+    return Math.round(P * r / 100 * days / 365);
+  }
+  return Math.max(0, Number(d.interestTotal) || 0);
+}
+
+function cashRateFromInterest_(d, I) {
+  var P = Number(d.principal) || 0;
+  if (!(I > 0) || !(P > 0) || !d.dueDate || !d.firstPayDate) return 0;
+  var days = daysBetween_(d.firstPayDate, d.dueDate);
+  if (!(days > 0)) return 0;
+  return Math.round(I / (P * days / 365) * 100 * 10000) / 10000;
+}
+
+function cashStats_(d, today) {
+  var P = Number(d.principal) || 0, I = cashInterest_(d);
+  var reps = (d.prepayments || []).filter(function (p) { return Number(p.amount) > 0 && p.date; })
+    .sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  var repaid = 0;
+  reps.forEach(function (p) { repaid += Number(p.amount); });
+  var payable = P + I, remaining = Math.max(0, payable - repaid);
+  var ratio = payable > 0 ? remaining / payable : 0;   // 還款按本金與利息的比例分攤
+  var remPrincipal = Math.round(P * ratio);
+  var remInterest = Math.round(I * ratio);
+  var last = reps.length ? reps[reps.length - 1] : null;
+  var rate = Number(d.annualRate) || 0;
+  if (!(rate > 0)) rate = cashRateFromInterest_(d, I);
+  return {
+    isCash: true, rows: [], total: 0, paid: 0, grace: 0,
+    totalInterest: I, paidInterest: I - remInterest, remainingInterest: remInterest,
+    totalPayable: payable, paidAmount: repaid, remainingAmount: remaining,
+    remainingPrincipal: remPrincipal, paidPrincipal: P - remPrincipal,
+    remainingPeriods: 0,
+    remainingYears: (d.dueDate && today) ? Math.max(0, Math.round(daysBetween_(today, d.dueDate) / 365 * 10) / 10) : null,
+    endDate: d.dueDate || '', nextRow: null, done: remaining <= 0 && payable > 0,
+    inGrace: false, totalPrepay: repaid, repayCount: reps.length, lastRepay: last,
+    overdue: !!(d.dueDate && today && today > d.dueDate && remaining > 0),
+    effRate: rate, flatRate: rate
   };
 }
 
 
-const METHODS = { annuity:'本息平均攤還', equalPrincipal:'本金平均攤還', noInterest:'不計利息' };
+const METHODS = { annuity:'本息攤還', equalPrincipal:'本金攤還', cash:'現金（彈性還款）', noInterest:'本息攤還（無息）' };
 const API_URL_KEY = 'debtLedger.apiUrl.v1', API_KEY_KEY = 'debtLedger.apiKey.v1';
 // 若與「儲蓄倒數帳本」部署在同一個網域，沿用它已存好的網址與密鑰，省去重填
 const SHARED_URL_KEY = 'savingsPassbook.apiUrl.v1', SHARED_KEY_KEY = 'savingsPassbook.apiKey.v1';
@@ -342,7 +442,7 @@ let apiUrl = localStorage.getItem(API_URL_KEY) || localStorage.getItem(SHARED_UR
 let apiKey = localStorage.getItem(API_KEY_KEY) || localStorage.getItem(SHARED_KEY_KEY) || '';
 let debts = [];
 let editingId = null, ppDebtId = null, openScheduleId = null, isSyncing = false;
-let currentPaid = 0, firstDateTouched = false;
+let currentPaid = 0;
 
 const $ = (id)=>document.getElementById(id);
 const fmt = (n)=>'$' + Math.round(n).toLocaleString('en-US');
@@ -385,16 +485,23 @@ function saveDebt(debt){
 }
 
 // ---- 畫面 ----
+const pct = (x)=> (Math.round((Number(x)||0)*1000)/1000) + '%';
+const yearsLeft = (s)=> s.isCash ? s.remainingYears : (s.done ? null : s.remainingPeriods/12);
+
 function ringSVG(st, principal){
   const size=88, c=size/2, r=34, circ=2*Math.PI*r;
-  const pct = principal>0 ? Math.max(0, Math.min(1, st.paidPrincipal/principal)) : 0;
-  const center = st.done ? '清' : Math.ceil(st.remainingPeriods/12);
+  const p = principal>0 ? Math.max(0, Math.min(1, st.paidPrincipal/principal)) : 0;
+  let center, unit;
+  if (st.done){ center='清'; unit=''; }
+  else if (st.isCash){ center=Math.round(p*100)+'%'; unit='已還本金'; }
+  else { center=Math.ceil(st.remainingPeriods/12); unit='年'; }
+  const fs = String(center).length>3 ? 15 : 19;
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
     <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--cream-2)" stroke-width="9"/>
     <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="var(--brass)" stroke-width="9" stroke-linecap="round"
-      stroke-dasharray="${circ*pct} ${circ}" transform="rotate(-90 ${c} ${c})"/>
-    <text x="${c}" y="${c+3}" text-anchor="middle" font-family="var(--serif)" font-size="19" font-weight="700" fill="var(--ink)">${center}</text>
-    <text x="${c}" y="${c+16}" text-anchor="middle" font-family="var(--mono)" font-size="8" fill="var(--sage)">${st.done?'':'年'}</text>
+      stroke-dasharray="${circ*p} ${circ}" transform="rotate(-90 ${c} ${c})"/>
+    <text x="${c}" y="${c+3}" text-anchor="middle" font-family="var(--serif)" font-size="${fs}" font-weight="700" fill="var(--ink)">${center}</text>
+    <text x="${c}" y="${c+16}" text-anchor="middle" font-family="var(--mono)" font-size="8" fill="var(--sage)">${unit}</text>
   </svg>`;
 }
 
@@ -404,12 +511,12 @@ function renderSummary(items){
   const active = items.filter(x=>!x.s.done);
   const sum = (arr,f)=>arr.reduce((a,x)=>a+f(x.s),0);
   let maxYears=null, maxEnd=null;
-  active.forEach(({s})=>{ if(maxYears===null || s.remainingPeriods/12>maxYears){ maxYears=s.remainingPeriods/12; maxEnd=s.endDate; } });
+  active.forEach(({s})=>{ const y=yearsLeft(s); if(y!==null && (maxYears===null || y>maxYears)){ maxYears=y; maxEnd=s.endDate; } });
   strip.innerHTML = `
     <div class="summary-cell"><div class="label">剩餘本金</div><div class="value">${fmt(sum(items,s=>s.remainingPrincipal))}</div></div>
     <div class="summary-cell"><div class="label">剩餘未還總額（含利息）</div><div class="value">${fmt(sum(items,s=>s.remainingAmount))}</div></div>
-    <div class="summary-cell"><div class="label">尚餘幾年（最晚到期）</div><div class="value">${maxYears===null?'已全數還清':maxYears.toFixed(1)+' 年'}</div>${maxEnd?`<div class="note">至 ${fmtYM(maxEnd)}</div>`:''}</div>
-    <div class="summary-cell"><div class="label">目前每月還款合計</div><div class="value">${fmt(active.reduce((a,x)=>a+(x.s.nextRow?x.s.nextRow.payment:0),0))}</div></div>`;
+    <div class="summary-cell"><div class="label">尚餘幾年（最晚到期）</div><div class="value">${active.length===0?'已全數還清':(maxYears===null?'—':maxYears.toFixed(1)+' 年')}</div>${maxEnd?`<div class="note">至 ${fmtYM(maxEnd)}</div>`:''}</div>
+    <div class="summary-cell"><div class="label">目前每月還款合計</div><div class="value">${fmt(active.reduce((a,x)=>a+(x.s.nextRow?x.s.nextRow.payment:0),0))}</div><div class="note">不含現金類型</div></div>`;
 
   const groups = new Map();
   items.forEach(it=>{ const k=(it.d.creditor||'').trim()||'（未填寫債權人）'; if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(it); });
@@ -417,11 +524,76 @@ function renderSummary(items){
   let html = '<div class="group-wrap"><div class="group-title">依債權人／貸款機構</div>';
   groups.forEach((arr,name)=>{
     const act = arr.filter(x=>!x.s.done);
-    const yrs = act.length ? Math.max(...act.map(x=>x.s.remainingPeriods/12)) : null;
-    html += `<div class="group-card"><div><div class="name">${esc(name)}</div><div class="years">${yrs===null?'已還清':'尚餘 '+yrs.toFixed(1)+' 年'}</div></div>
+    const ys = act.map(x=>yearsLeft(x.s)).filter(y=>y!==null);
+    const yrs = ys.length ? Math.max(...ys) : null;
+    html += `<div class="group-card"><div><div class="name">${esc(name)}</div><div class="years">${act.length===0?'已還清':(yrs===null?'—':'尚餘 '+yrs.toFixed(1)+' 年')}</div></div>
       <div class="amounts"><div><span class="k">剩餘本金</span>${fmt(sum(arr,s=>s.remainingPrincipal))}</div><div><span class="k">未還總額</span>${fmt(sum(arr,s=>s.remainingAmount))}</div></div></div>`;
   });
   grp.innerHTML = html + '</div>';
+}
+
+function cardHTML(d, s){
+  const principal = Number(d.principal), rate = Number(d.annualRate)||0;
+  const open = openScheduleId === d.id;
+  const bar = `<div class="progress-track"><div class="progress-fill" style="width:${principal>0?Math.min(100,s.paidPrincipal/principal*100):0}%"></div></div>`;
+  if (s.isCash){
+    const last = s.lastRepay;
+    return `<div class="debt-card ${s.done?'done':''}" data-id="${d.id}">
+      <div class="card-top">
+        <div class="rings">${ringSVG(s, principal)}</div>
+        <div class="card-info">
+          <h3>${esc(d.name)}</h3>
+          <div class="sub">${d.creditor?esc(d.creditor)+'．':''}現金（彈性還款）${s.effRate>0?'．單利年利率 '+pct(s.effRate):''}．借款 ${fmt(principal)}</div>
+          ${d.note?`<div class="note-line">${esc(d.note)}</div>`:''}
+          ${s.overdue?'<span class="tag warn">已逾預計還清日</span>':''}${s.done?'<span class="tag ok">已還清</span>':''}${s.repayCount?`<span class="tag">已還款 ${s.repayCount} 筆</span>`:''}
+          <div class="stat-row"><span class="k">剩餘未還（含利息）</span><span class="v">${s.done?'已還清':fmt(s.remainingAmount)}</span></div>
+          <div class="stat-row"><span class="k">剩餘本金</span><span class="v">${fmt(s.remainingPrincipal)}</span></div>
+          <div class="stat-row"><span class="k">已還／應還總額</span><span class="v">${fmt(s.paidAmount)} ／ ${fmt(s.totalPayable)}</span></div>
+          <div class="stat-row"><span class="k">借款日</span><span class="v">${fmtD(d.firstPayDate)}</span></div>
+          ${d.dueDate?`<div class="stat-row"><span class="k">預計還清日</span><span class="v">${fmtD(d.dueDate)}${s.remainingYears!==null&&!s.done?'（約剩 '+s.remainingYears.toFixed(1)+' 年）':''}</span></div>`:''}
+          ${last?`<div class="stat-row"><span class="k">最近還款</span><span class="v">${fmtD(last.date)}　${fmt(last.amount)}</span></div>`:''}
+          ${s.totalInterest>0?`<div class="stat-row"><span class="k">利息 已繳／總計</span><span class="v">${fmt(s.paidInterest)} ／ ${fmt(s.totalInterest)}</span></div>`:''}
+          ${bar}
+        </div>
+      </div>
+      <div class="card-actions">
+        <button data-act="prepay">登錄還款</button>
+        <button data-act="edit">編輯</button>
+        <button data-act="delete" class="danger">刪除</button>
+      </div>
+    </div>`;
+  }
+  const rows = s.rows.map((r,i)=>`<tr class="${i<s.paid?'paid':''} ${i===s.paid?'next':''}">
+      <td>${r.index}</td><td>${fmtD(r.date)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.principal)}</td><td>${fmt(r.interest)}</td>
+      <td>${fmt(r.balance)}${r.prepay?`<div class="pp">提前還 ${fmt(r.prepay)}</div>`:''}</td></tr>`).join('');
+  const ppN = (d.prepayments||[]).length;
+  return `<div class="debt-card ${s.done?'done':''}" data-id="${d.id}">
+    <div class="card-top">
+      <div class="rings">${ringSVG(s, principal)}</div>
+      <div class="card-info">
+        <h3>${esc(d.name)}</h3>
+        <div class="sub">${d.creditor?esc(d.creditor)+'．':''}${METHODS[d.repayMethod]||''}．貸款 ${fmt(principal)}</div>
+        ${d.note?`<div class="note-line">${esc(d.note)}</div>`:''}
+        ${s.inGrace?'<span class="tag warn">寬限期中（僅繳息）</span>':''}${ppN?`<span class="tag">提前還款 ${ppN} 筆</span>`:''}${s.done?'<span class="tag ok">已還清</span>':''}
+        <div class="stat-row"><span class="k">剩餘</span><span class="v">${s.done?'已還清':s.remainingPeriods+' 期（約 '+s.remainingYears.toFixed(1)+' 年）'}</span></div>
+        <div class="stat-row"><span class="k">債務期間</span><span class="v">${fmtYM(d.firstPayDate)} ～ ${fmtYM(s.endDate)}</span></div>
+        <div class="stat-row"><span class="k">下期還款</span><span class="v">${s.nextRow?fmtD(s.nextRow.date)+'　'+fmt(s.nextRow.payment):'—'}</span></div>
+        <div class="stat-row"><span class="k">剩餘本金</span><span class="v">${fmt(s.remainingPrincipal)}</span></div>
+        <div class="stat-row"><span class="k">已還／應還總額</span><span class="v">${fmt(s.paidAmount)} ／ ${fmt(s.totalPayable)}</span></div>
+        ${rate>0?`<div class="stat-row"><span class="k">利率</span><span class="v">實質 ${pct(s.effRate)}／平息 ${pct(s.flatRate)}</span></div>
+        <div class="stat-row"><span class="k">利息 已繳／總計</span><span class="v">${fmt(s.paidInterest)} ／ ${fmt(s.totalInterest)}</span></div>`:''}
+        ${bar}
+      </div>
+    </div>
+    <div class="card-actions">
+      <button data-act="schedule">${open?'收合':'還款明細'}</button>
+      <button data-act="prepay">提前還款</button>
+      <button data-act="edit">編輯</button>
+      <button data-act="delete" class="danger">刪除</button>
+    </div>
+    <div class="schedule-wrap ${open?'open':''}"><table class="schedule-table">
+      <thead><tr><th>期別</th><th>日期</th><th>還款額</th><th>本金</th><th>利息</th><th>餘額</th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
 }
 
 function render(){
@@ -431,47 +603,12 @@ function render(){
   if (isSyncing && !debts.length) return showEmpty('連線中…','正在從 Google Sheet 讀取債務資料。');
   if (!debts.length) return showEmpty('還沒有任何債務','點右下角「＋」新增第一筆債務，開始倒數。');
   empty.style.display='none';
-
-  const items = debts.map(d=>({ d, s: debtStats_(d) }));
+  const t = todayStr();
+  const items = debts.map(d=>({ d, s: debtStats_(d, t) }));
   renderSummary(items);
-  items.sort((a,b)=>{
-    const ta = a.s.nextRow ? a.s.nextRow.date : '9999-12-31', tb = b.s.nextRow ? b.s.nextRow.date : '9999-12-31';
-    return ta < tb ? -1 : ta > tb ? 1 : 0;
-  });
-
-  list.innerHTML = items.map(({d,s})=>{
-    const open = openScheduleId === d.id;
-    const hasRate = d.repayMethod !== 'noInterest' && Number(d.annualRate) > 0;
-    const rows = s.rows.map((r,i)=>`<tr class="${i<s.paid?'paid':''} ${i===s.paid?'next':''}">
-      <td>${r.index}</td><td>${fmtD(r.date)}</td><td>${fmt(r.payment)}</td><td>${fmt(r.principal)}</td><td>${fmt(r.interest)}</td>
-      <td>${fmt(r.balance)}${r.prepay?`<div class="pp">提前還 ${fmt(r.prepay)}</div>`:''}</td></tr>`).join('');
-    const ppN = (d.prepayments||[]).length;
-    return `<div class="debt-card ${s.done?'done':''}" data-id="${d.id}">
-      <div class="card-top">
-        <div class="rings">${ringSVG(s, Number(d.principal))}</div>
-        <div class="card-info">
-          <h3>${esc(d.name)}</h3>
-          <div class="sub">${d.creditor?esc(d.creditor)+'．':''}${METHODS[d.repayMethod]||''}${hasRate?'．年利率 '+Number(d.annualRate)+'%':''}．貸款 ${fmt(d.principal)}</div>
-          ${s.inGrace?'<span class="tag warn">寬限期中（僅繳息）</span>':''}${ppN?`<span class="tag">提前還款 ${ppN} 筆</span>`:''}${s.done?'<span class="tag">已還清</span>':''}
-          <div class="stat-row"><span class="k">剩餘</span><span class="v">${s.done?'已還清':s.remainingPeriods+' 期（約 '+s.remainingYears.toFixed(1)+' 年）'}</span></div>
-          <div class="stat-row"><span class="k">債務期間</span><span class="v">${fmtYM(d.startDate||d.firstPayDate)} ～ ${fmtYM(s.endDate)}</span></div>
-          <div class="stat-row"><span class="k">下期還款</span><span class="v">${s.nextRow?fmtD(s.nextRow.date)+'　'+fmt(s.nextRow.payment):'—'}</span></div>
-          <div class="stat-row"><span class="k">剩餘本金</span><span class="v">${fmt(s.remainingPrincipal)}</span></div>
-          <div class="stat-row"><span class="k">已還／應還總額</span><span class="v">${fmt(s.paidAmount)} ／ ${fmt(s.totalPayable)}</span></div>
-          ${hasRate?`<div class="stat-row"><span class="k">利息 已繳／總計</span><span class="v">${fmt(s.paidInterest)} ／ ${fmt(s.totalInterest)}</span></div>`:''}
-          <div class="progress-track"><div class="progress-fill" style="width:${Number(d.principal)>0?Math.min(100,s.paidPrincipal/Number(d.principal)*100):0}%"></div></div>
-        </div>
-      </div>
-      <div class="card-actions">
-        <button data-act="schedule">${open?'收合':'還款明細'}</button>
-        <button data-act="prepay">提前還款</button>
-        <button data-act="edit">編輯</button>
-        <button data-act="delete" class="danger">刪除</button>
-      </div>
-      <div class="schedule-wrap ${open?'open':''}"><table class="schedule-table">
-        <thead><tr><th>期別</th><th>日期</th><th>還款額</th><th>本金</th><th>利息</th><th>餘額</th></tr></thead><tbody>${rows}</tbody></table></div>
-    </div>`;
-  }).join('');
+  const sortKey = (x)=> x.s.nextRow ? x.s.nextRow.date : (x.s.done ? '9999-12-31' : (x.d.dueDate || '9999-12-30'));
+  items.sort((a,b)=>{ const ka=sortKey(a), kb=sortKey(b); return ka<kb?-1:ka>kb?1:0; });
+  list.innerHTML = items.map(({d,s})=>cardHTML(d,s)).join('');
 }
 
 $('debtList').addEventListener('click', (e)=>{
@@ -491,57 +628,99 @@ $('debtList').addEventListener('click', (e)=>{
 });
 
 // ---- 新增／編輯 ----
+let rateSource = 'rate'; // 最後一次是改「利率」還是「利息總額」，換算時以它為準
+const isCashForm = ()=>$('d_method').value==='cash';
+
+function applyMethodUI(){
+  const cash = isCashForm();
+  document.querySelectorAll('.inst-only').forEach(el=>el.classList.toggle('hidden', cash));
+  document.querySelectorAll('.cash-only').forEach(el=>el.classList.toggle('hidden', !cash));
+  $('rateLabel').textContent = cash ? '單利年利率（%）' : '實質年利率（%）';
+  $('firstLabel').textContent = cash ? '借款日' : '首期還款日';
+}
 function formDebt(){
+  const cash = isCashForm();
   return {
     id: editingId || 'tmp', name: $('d_name').value.trim(), creditor: $('d_creditor').value.trim(),
     repayMethod: $('d_method').value, principal: parseFloat($('d_principal').value),
-    annualRate: $('d_method').value==='noInterest' ? 0 : (parseFloat($('d_rate').value)||0),
-    startDate: $('d_start').value, firstPayDate: $('d_first').value,
-    totalMonths: parseInt($('d_months').value,10), graceMonths: parseInt($('d_grace').value,10)||0,
+    annualRate: parseFloat($('d_rate').value)||0,
+    firstPayDate: $('d_first').value, note: $('d_note').value.trim(),
+    totalMonths: cash ? 0 : (parseInt($('d_months').value,10)||0), graceMonths: cash ? 0 : (parseInt($('d_grace').value,10)||0),
+    dueDate: cash ? $('d_due').value : '', interestTotal: parseFloat($('d_interest').value)||0,
     prepayments: editingId ? ((debts.find(x=>x.id===editingId)||{}).prepayments||[]) : [], paidCount: currentPaid
   };
 }
-function scheduleLen(d){ return (d.principal>0 && d.totalMonths>0 && d.firstPayDate) ? computeSchedule_(d).rows.length : (d.totalMonths||0); }
+function scheduleLen(d){
+  if (d.repayMethod==='cash') return 0;
+  return (d.principal>0 && d.totalMonths>0 && d.firstPayDate) ? computeSchedule_(d).rows.length : (d.totalMonths||0);
+}
 function refreshPaid(){
+  if (isCashForm()) return;
   const max = scheduleLen(formDebt());
   currentPaid = Math.max(0, Math.min(currentPaid, max));
   $('paidDisplay').textContent = currentPaid; $('paidOfTotal').textContent = `／共 ${max} 期`;
   const m = parseInt($('d_months').value,10);
   $('monthsHint').textContent = m>0 ? `貸款期數 ${m} 期 ＝ ${Math.floor(m/12)} 年${m%12?' '+(m%12)+' 個月':''}。寬限期內只繳利息、不還本金。` : '貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。';
 }
+function readyForConvert(d){
+  if (!(d.principal>0)) return false;
+  if (d.repayMethod==='cash') return !!(d.firstPayDate && d.dueDate);
+  return d.totalMonths>0 && !!d.firstPayDate && d.graceMonths<d.totalMonths;
+}
+// 利率 ↔ 利息總額 互相換算
+function syncRateInterest(){
+  const d = formDebt(), info = $('rateInfo'), cash = d.repayMethod==='cash';
+  if (!readyForConvert(d)){
+    info.textContent = cash ? '填入本金、借款日與預計還清日後，利率與利息總額可互相換算；沒有預計還清日時，請直接輸入利息總額。'
+                            : '填入本金、貸款期數與首期還款日後，利率與利息總額可互相換算。';
+    return;
+  }
+  const rateStr = $('d_rate').value, intStr = $('d_interest').value;
+  let rate = parseFloat(rateStr)||0, I = parseFloat(intStr)||0;
+  if (rateSource==='interest' && intStr!==''){
+    rate = cash ? cashRateFromInterest_(d, I) : solveRate_(d, I);
+    $('d_rate').value = rate;
+  } else if (rateStr!==''){
+    I = Math.round(cash ? cashInterest_(d) : baselineInterest_(d, rate));
+    $('d_interest').value = I;
+  }
+  const flat = cash ? rate : installmentFlatRate_(Object.assign({}, d, { annualRate: rate }));
+  info.textContent = cash ? `單利年利率 ${pct(rate)}｜利息總額 ${fmt(I)}`
+                          : `實質年利率 ${pct(rate)}｜平息年利率 ${pct(flat)}｜利息總額 ${fmt(I)}`;
+}
 function recomputeDefaultPaid(){
-  if (!editingId){
+  if (!isCashForm() && !editingId){
     const d = formDebt();
     if (d.principal>0 && d.totalMonths>0 && d.firstPayDate){
       const t = todayStr();
       currentPaid = computeSchedule_(d).rows.filter(r=>r.date<=t).length;
     }
   }
-  refreshPaid();
+  refreshPaid(); syncRateInterest();
 }
-function toggleRate(){ $('rateField').style.display = $('d_method').value==='noInterest' ? 'none' : ''; }
 
 $('paidMinus').onclick = ()=>{ currentPaid--; refreshPaid(); };
 $('paidPlus').onclick = ()=>{ currentPaid++; refreshPaid(); };
-['d_method','d_principal','d_rate','d_months','d_grace','d_first'].forEach(id=>$(id).addEventListener('input', ()=>{ if(id==='d_first') firstDateTouched=true; if(id==='d_method') toggleRate(); recomputeDefaultPaid(); }));
-$('d_start').addEventListener('change', ()=>{
-  if (!firstDateTouched && $('d_start').value){ $('d_first').value = addMonthsStr_($('d_start').value, 1); }
-  recomputeDefaultPaid();
-});
+$('d_rate').addEventListener('input', ()=>{ rateSource='rate'; syncRateInterest(); });
+$('d_interest').addEventListener('input', ()=>{ rateSource='interest'; syncRateInterest(); });
+['d_principal','d_months','d_grace','d_first','d_due'].forEach(id=>$(id).addEventListener('input', recomputeDefaultPaid));
+$('d_method').addEventListener('change', ()=>{ applyMethodUI(); recomputeDefaultPaid(); });
 
 function openAdd(){
-  editingId=null; firstDateTouched=false; $('debtModalTitle').textContent='新增債務'; $('debtForm').reset();
-  $('d_rate').value=0; $('d_grace').value=0; $('d_start').value=todayStr(); $('d_first').value=addMonthsStr_(todayStr(),1);
-  currentPaid=0; toggleRate(); refreshPaid(); $('debtModalOverlay').classList.add('open');
+  editingId=null; rateSource='rate'; $('debtModalTitle').textContent='新增債務'; $('debtForm').reset();
+  $('d_method').value='annuity'; $('d_grace').value=0; $('d_first').value=addMonthsStr_(todayStr(),1);
+  currentPaid=0; applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
 }
 function openEdit(id){
   const d = debts.find(x=>x.id===id); if(!d) return;
-  editingId=id; firstDateTouched=true; $('debtModalTitle').textContent='編輯債務';
-  $('d_name').value=d.name; $('d_creditor').value=d.creditor||''; $('d_method').value=d.repayMethod;
-  $('d_principal').value=d.principal; $('d_rate').value=d.annualRate||0;
-  $('d_start').value=d.startDate; $('d_first').value=d.firstPayDate;
-  $('d_months').value=d.totalMonths; $('d_grace').value=d.graceMonths||0;
-  currentPaid=d.paidCount; toggleRate(); refreshPaid(); $('debtModalOverlay').classList.add('open');
+  editingId=id; $('debtModalTitle').textContent='編輯債務';
+  $('d_name').value=d.name; $('d_creditor').value=d.creditor||''; $('d_method').value=d.repayMethod==='noInterest'?'annuity':d.repayMethod;
+  $('d_principal').value=d.principal; $('d_first').value=d.firstPayDate||d.startDate||''; $('d_note').value=d.note||'';
+  $('d_months').value=d.totalMonths||''; $('d_grace').value=d.graceMonths||0; $('d_due').value=d.dueDate||'';
+  $('d_rate').value = d.annualRate>0 ? d.annualRate : '';
+  $('d_interest').value = (!(d.annualRate>0) && d.interestTotal>0) ? d.interestTotal : '';
+  rateSource = $('d_interest').value!=='' ? 'interest' : 'rate';
+  currentPaid=d.paidCount; applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
 }
 const closeDebtModal = ()=>$('debtModalOverlay').classList.remove('open');
 $('btnAdd').onclick = openAdd; $('debtCancel').onclick = closeDebtModal;
@@ -549,23 +728,37 @@ $('debtModalOverlay').addEventListener('click', e=>{ if(e.target===$('debtModalO
 
 $('debtForm').addEventListener('submit', (e)=>{
   e.preventDefault();
-  const d = formDebt();
-  if (!d.name || !(d.principal>0) || !d.firstPayDate || !(d.totalMonths>0)) return;
-  if (d.graceMonths >= d.totalMonths){ toast('寬限期必須小於貸款期數'); return; }
+  const d = formDebt(), cash = d.repayMethod==='cash';
+  if (!d.name || !(d.principal>0) || !d.firstPayDate){ toast(cash ? '請填寫債務名稱、貸款本金與借款日' : '請填寫債務名稱、貸款本金與首期還款日'); return; }
+  if (cash){
+    if (d.annualRate>0 && !d.dueDate && !(d.interestTotal>0)){ toast('請填預計還清日，或直接輸入利息總額'); return; }
+  } else {
+    if (!(d.totalMonths>0)){ toast('請填寫貸款期數'); return; }
+    if (d.graceMonths >= d.totalMonths){ toast('寬限期必須小於貸款期數'); return; }
+  }
   d.id = editingId || uid();
   toast('儲存中…');
   saveDebt(d).then(()=>{ closeDebtModal(); toast('已寫入 Sheet'); }).catch(err=>toast('儲存失敗：' + err.message));
 });
 
-// ---- 提前還款 ----
+// ---- 提前還款／現金還款 ----
 function renderPrepayList(){
   const d = debts.find(x=>x.id===ppDebtId); if(!d) return;
-  $('ppTitle').textContent = `提前還款｜${d.name}`;
+  const cash = d.repayMethod==='cash';
+  $('ppTitle').textContent = (cash?'還款紀錄｜':'提前還款｜') + d.name;
   const list = d.prepayments||[];
-  $('ppList').innerHTML = list.length ? list.map((p,i)=>`<li><span>${fmtD(p.date)}　<span class="m">${fmt(p.amount)}</span>　${p.mode==='reduce'?'降低每期還款額':'縮短期數'}</span><button data-i="${i}">刪除</button></li>`).join('')
-    : '<li style="justify-content:center;color:var(--sage);">尚無提前還款紀錄</li>';
+  $('ppList').innerHTML = list.length ? list.map((p,i)=>`<li><span>${fmtD(p.date)}　<span class="m">${fmt(p.amount)}</span>${cash?'':'　'+(p.mode==='reduce'?'降低每期還款額':'縮短期數')}</span><button data-i="${i}">刪除</button></li>`).join('')
+    : `<li style="justify-content:center;color:var(--sage);">尚無${cash?'還款':'提前還款'}紀錄</li>`;
 }
-function openPrepay(id){ ppDebtId=id; $('p_date').value=todayStr(); $('p_amount').value=''; renderPrepayList(); $('ppModalOverlay').classList.add('open'); }
+function openPrepay(id){
+  ppDebtId=id; const d = debts.find(x=>x.id===id), cash = d && d.repayMethod==='cash';
+  $('ppModeField').classList.toggle('hidden', !!cash);
+  $('ppDateLabel').textContent = cash ? '還款日' : '提前還款日';
+  $('ppAmountLabel').textContent = cash ? '還款金額（元）' : '提前還款本金（元）';
+  $('ppAdd').textContent = cash ? '登錄還款' : '登錄提前還款';
+  $('ppHint').textContent = cash ? '每筆還款依本金與利息的比例分攤，登錄後自動更新剩餘金額。' : '登錄後會重新試算剩餘期數、利息與到期日。';
+  $('p_date').value=todayStr(); $('p_amount').value=''; renderPrepayList(); $('ppModalOverlay').classList.add('open');
+}
 $('ppClose').onclick = ()=>$('ppModalOverlay').classList.remove('open');
 $('ppModalOverlay').addEventListener('click', e=>{ if(e.target===$('ppModalOverlay')) $('ppModalOverlay').classList.remove('open'); });
 $('ppAdd').onclick = ()=>{
