@@ -104,6 +104,7 @@
   .pp-list .m{font-family:var(--mono);}
   .pp-list button{background:none;border:none;color:var(--stamp);cursor:pointer;font-size:0.8rem;}
   .hidden{display:none !important;}
+  .legacy-banner{background:#F7E3E0;border:1px solid var(--stamp);color:var(--stamp);border-radius:6px;padding:10px 12px;margin-bottom:14px;font-size:0.78rem;line-height:1.6;}
   .check-row{display:flex !important;align-items:center;gap:8px;color:var(--charcoal) !important;font-size:0.82rem !important;margin-bottom:8px !important;cursor:pointer;}
   .check-row input{width:auto !important;}
   .note-line{font-size:0.74rem;color:var(--charcoal);background:var(--cream-2);border-left:3px solid var(--brass);padding:4px 8px;margin:0 0 8px;border-radius:0 4px 4px 0;line-height:1.5;}
@@ -123,6 +124,7 @@
 </header>
 
 <main>
+  <div class="legacy-banner hidden" id="legacyBanner">⚠ 後端程式還是舊版：已繳期數可能不會自動前進（畫面已先用日期修正顯示）。請到 Apps Script →「管理部署作業」→ 編輯 → 版本選「新版本」→ 部署。</div>
   <div class="summary-strip" id="summaryStrip"></div>
   <div id="groupSummary"></div>
   <div id="debtList"></div>
@@ -450,6 +452,7 @@ const DEFAULT_URL = 'https://script.google.com/macros/s/AKfycbwg8xGJLInkA-QmBe1_
 let apiUrl = localStorage.getItem(API_URL_KEY) || localStorage.getItem(SHARED_URL_KEY) || DEFAULT_URL;
 let apiKey = localStorage.getItem(API_KEY_KEY) || localStorage.getItem(SHARED_KEY_KEY) || '';
 let debts = [];
+let backendVersion = '', legacyBackend = false; // 後端沒回傳版本號＝還是舊版程式
 let editingId = null, ppDebtId = null, openScheduleId = null, isSyncing = false;
 let currentPaid = 0;
 
@@ -458,6 +461,18 @@ const fmt = (n)=>'$' + Math.round(n).toLocaleString('en-US');
 const fmtD = (s)=>String(s).slice(0,10).replace(/-/g,'/');
 const fmtYM = (s)=>String(s).slice(0,7).replace('-','/');
 function esc(s){ const d=document.createElement('div'); d.textContent = s==null?'':String(s); return d.innerHTML; }
+// 舊版後端會把「當時的已繳期數」存成固定數字。若偵測到後端是舊版：
+// 固定數字 ≤ 依今天日期推算的期數（過期的）→ 當作自動；比推算值大（提前繳）→ 保留。
+function fixLegacy(list){
+  if (!legacyBackend) return list;
+  const t = todayStr();
+  return list.map(d=>{
+    if (d.repayMethod==='cash' || d.paidCount===null || d.paidCount===undefined) return d;
+    if (!(d.principal>0) || !(d.totalMonths>0) || !d.firstPayDate) return d;
+    const auto = computeSchedule_(d).rows.filter(r=>r.date<=t).length;
+    return d.paidCount <= auto ? Object.assign({}, d, { paidCount:null }) : d;
+  });
+}
 function uid(){ return 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 function todayStr(){ const t=new Date(); return t.getFullYear()+'-'+pad2_(t.getMonth()+1)+'-'+pad2_(t.getDate()); }
 let toastTimer=null;
@@ -468,13 +483,13 @@ function apiGet(action){
   if (!apiUrl) return Promise.reject(new Error('尚未設定 Apps Script 網址'));
   const url = apiUrl + (apiUrl.includes('?')?'&':'?') + 'action=' + encodeURIComponent(action) + '&key=' + encodeURIComponent(apiKey);
   return fetch(url).then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(d=>{ if(d && d.error) throw new Error(d.error); return d; });
+    .then(d=>{ if(d && d.error) throw new Error(d.error); backendVersion=(d&&d.v)||''; legacyBackend=!backendVersion; return d; });
 }
 function apiPost(payload){
   if (!apiUrl) return Promise.reject(new Error('尚未設定 Apps Script 網址'));
   return fetch(apiUrl, { method:'POST', body: JSON.stringify(Object.assign({key:apiKey}, payload)) })
     .then(r=>{ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
-    .then(d=>{ if(d && d.error) throw new Error(d.error); return d; });
+    .then(d=>{ if(d && d.error) throw new Error(d.error); backendVersion=(d&&d.v)||''; legacyBackend=!backendVersion; return d; });
 }
 function setApiStatus(msg, isErr){ const el=$('apiStatus'); if(el){ el.textContent=msg; el.style.color = isErr?'var(--stamp)':'var(--sage)'; } }
 
@@ -482,15 +497,15 @@ function syncFromSheet(){
   if (!apiUrl){ setApiStatus('尚未設定網址', true); render(); return Promise.resolve(); }
   isSyncing = true; render();
   return apiGet('listDebts').then(d=>{
-    debts = d.debts || [];
-    setApiStatus('已連線，同步時間 ' + new Date().toLocaleTimeString('zh-TW'));
+    debts = fixLegacy(d.debts || []);
+    setApiStatus('已連線，同步時間 ' + new Date().toLocaleTimeString('zh-TW') + (legacyBackend ? '　⚠ 後端程式是舊版，請重新部署新版本' : '　（後端版本 ' + backendVersion + '）'), legacyBackend);
   }).catch(err=>{
     setApiStatus('連線失敗：' + err.message, true);
     toast('無法連上 Google Sheet，請檢查網址、密鑰或網路');
   }).finally(()=>{ isSyncing=false; render(); });
 }
 function saveDebt(debt){
-  return apiPost({ action:'upsertDebt', debt }).then(res=>{ debts = res.debts || debts; render(); });
+  return apiPost({ action:'upsertDebt', debt }).then(res=>{ debts = fixLegacy(res.debts || debts); render(); });
 }
 
 // ---- 畫面 ----
@@ -606,6 +621,7 @@ function cardHTML(d, s){
 }
 
 function render(){
+  $('legacyBanner').classList.toggle('hidden', !legacyBackend);
   const list=$('debtList'), empty=$('emptyState');
   const showEmpty = (h,p)=>{ list.innerHTML=''; $('summaryStrip').innerHTML=''; $('groupSummary').innerHTML=''; empty.style.display='block'; empty.innerHTML=`<h2>${h}</h2><p>${p}</p>`; };
   if (!apiUrl) return showEmpty('尚未連接 Google Sheet','請點右上角「⚙ 設定」貼上 Apps Script 網址與密鑰。');
@@ -630,7 +646,7 @@ $('debtList').addEventListener('click', (e)=>{
     const d = debts.find(x=>x.id===id);
     if (confirm(`確定要刪除「${d.name}」嗎？此動作無法復原。`)){
       toast('刪除中…');
-      apiPost({ action:'deleteDebt', id }).then(res=>{ debts = res.debts || debts.filter(x=>x.id!==id); render(); toast('已從 Sheet 刪除'); })
+      apiPost({ action:'deleteDebt', id }).then(res=>{ debts = fixLegacy(res.debts || debts.filter(x=>x.id!==id)); render(); toast('已從 Sheet 刪除'); })
         .catch(err=>toast('刪除失敗：' + err.message));
     }
   }
@@ -814,7 +830,7 @@ $('fileImport').addEventListener('change', (e)=>{
       if (!apiUrl){ toast('請先設定 Apps Script 網址'); return; }
       if (confirm('匯入將會覆蓋 Google Sheet 上所有債務資料，確定要繼續嗎？')){
         toast('匯入中…');
-        apiPost({ action:'replaceAllDebts', debts:data.debts }).then(res=>{ debts=res.debts||data.debts; render(); toast('匯入成功，已寫入 Sheet'); })
+        apiPost({ action:'replaceAllDebts', debts:data.debts }).then(res=>{ debts=fixLegacy(res.debts||data.debts); render(); toast('匯入成功，已寫入 Sheet'); })
           .catch(err=>toast('匯入失敗：' + err.message));
       }
     }catch(err){ toast('讀取失敗，請確認是正確的備份檔'); }
