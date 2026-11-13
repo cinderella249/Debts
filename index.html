@@ -104,6 +104,8 @@
   .pp-list .m{font-family:var(--mono);}
   .pp-list button{background:none;border:none;color:var(--stamp);cursor:pointer;font-size:0.8rem;}
   .hidden{display:none !important;}
+  .check-row{display:flex !important;align-items:center;gap:8px;color:var(--charcoal) !important;font-size:0.82rem !important;margin-bottom:8px !important;cursor:pointer;}
+  .check-row input{width:auto !important;}
   .note-line{font-size:0.74rem;color:var(--charcoal);background:var(--cream-2);border-left:3px solid var(--brass);padding:4px 8px;margin:0 0 8px;border-radius:0 4px 4px 0;line-height:1.5;}
   .rate-info{font-family:var(--mono);color:var(--ink);background:var(--cream-2);border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin:-6px 0 14px;font-size:0.74rem;line-height:1.7;}
   .tag.ok{border-color:var(--sage);color:var(--sage);}
@@ -164,12 +166,14 @@
       <p class="hint inst-only" id="monthsHint">貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。</p>
       <div class="field inst-only">
         <label>已繳期數</label>
-        <div class="stepper">
+        <div class="rate-info" id="paidAutoInfo" style="margin:0 0 8px;"></div>
+        <label class="check-row"><input type="checkbox" id="paidManual"> 手動指定已繳期數（一般不需要）</label>
+        <div class="stepper hidden" id="paidStepper">
           <button type="button" id="paidMinus">－</button><span id="paidDisplay">0</span><button type="button" id="paidPlus">＋</button>
           <span style="font-size:0.75rem;color:var(--sage);" id="paidOfTotal">／共 0 期</span>
         </div>
       </div>
-      <p class="hint inst-only">新增時會依首期還款日自動推算到今天已還幾期，可再手動微調。提前還款請儲存後，於卡片上的「提前還款」按鈕另外登錄。</p>
+      <p class="hint inst-only">已繳期數預設會「依今天日期自動往前推算」，不用每個月更新。只有提早繳或延後繳、與日期對不上時，才需要手動指定。提前還款請儲存後，於卡片上的「提前還款」按鈕另外登錄。</p>
       <div class="field"><label for="d_note">備註（選填）</label><input type="text" id="d_note" placeholder="例：每月 5 號自動扣款、合約編號…"></div>
       <p class="hint cash-only hidden">現金類型沒有固定期數，儲存後請在卡片上的「登錄還款」按鈕，記錄每一次的還款日期與金額。</p>
       <div class="modal-actions">
@@ -326,7 +330,11 @@ function computeSchedule_(d) {
 function debtStats_(d, today) {
   if (d.repayMethod === 'cash') return cashStats_(d, today);
   var s = computeSchedule_(d), rows = s.rows, total = rows.length;
-  var p = Math.min(Math.max(0, Math.round(Number(d.paidCount) || 0)), total);
+  // 已繳期數：留空(null)＝依今天日期自動推算；有填數字＝手動指定
+  var autoPaid = 0;
+  if (today) for (var k = 0; k < total; k++) { if (rows[k].date <= today) autoPaid = k + 1; else break; }
+  var manual = !(d.paidCount === null || d.paidCount === undefined || d.paidCount === '');
+  var p = Math.min(Math.max(0, Math.round(manual ? (Number(d.paidCount) || 0) : autoPaid)), total);
   var paidPayments = 0, paidInterest = 0, i, j;
   for (i = 0; i < p; i++) { paidPayments += rows[i].payment; paidInterest += rows[i].interest; }
   var futurePrepay = 0;
@@ -345,7 +353,8 @@ function debtStats_(d, today) {
     endDate: total > 0 ? rows[total - 1].date : d.firstPayDate,
     nextRow: p < total ? rows[p] : null,
     done: p >= total, inGrace: p < s.g, totalPrepay: s.totalPrepay,
-    effRate: Number(d.annualRate) || 0, flatRate: installmentFlatRate_(d), isCash: false
+    effRate: Number(d.annualRate) || 0, flatRate: installmentFlatRate_(d), isCash: false,
+    paidManual: manual, paidAuto: autoPaid
   };
 }
 
@@ -647,17 +656,24 @@ function formDebt(){
     firstPayDate: $('d_first').value, note: $('d_note').value.trim(),
     totalMonths: cash ? 0 : (parseInt($('d_months').value,10)||0), graceMonths: cash ? 0 : (parseInt($('d_grace').value,10)||0),
     dueDate: cash ? $('d_due').value : '', interestTotal: parseFloat($('d_interest').value)||0,
-    prepayments: editingId ? ((debts.find(x=>x.id===editingId)||{}).prepayments||[]) : [], paidCount: currentPaid
+    prepayments: editingId ? ((debts.find(x=>x.id===editingId)||{}).prepayments||[]) : [], paidCount: $('paidManual').checked ? currentPaid : null
   };
 }
 function scheduleLen(d){
   if (d.repayMethod==='cash') return 0;
   return (d.principal>0 && d.totalMonths>0 && d.firstPayDate) ? computeSchedule_(d).rows.length : (d.totalMonths||0);
 }
+function autoPaidCount(d){
+  if (d.repayMethod==='cash' || !(d.principal>0) || !(d.totalMonths>0) || !d.firstPayDate) return 0;
+  const t = todayStr();
+  return computeSchedule_(d).rows.filter(r=>r.date<=t).length;
+}
 function refreshPaid(){
   if (isCashForm()) return;
-  const max = scheduleLen(formDebt());
+  const d = formDebt(), max = scheduleLen(d), auto = Math.min(autoPaidCount(d), max);
   currentPaid = Math.max(0, Math.min(currentPaid, max));
+  $('paidStepper').classList.toggle('hidden', !$('paidManual').checked);
+  $('paidAutoInfo').textContent = max>0 ? `依今天日期自動推算：已繳 ${auto} 期，剩餘 ${max-auto} 期（共 ${max} 期）` : '填入首期還款日與貸款期數後，會自動推算已繳期數。';
   $('paidDisplay').textContent = currentPaid; $('paidOfTotal').textContent = `／共 ${max} 期`;
   const m = parseInt($('d_months').value,10);
   $('monthsHint').textContent = m>0 ? `貸款期數 ${m} 期 ＝ ${Math.floor(m/12)} 年${m%12?' '+(m%12)+' 個月':''}。寬限期內只繳利息、不還本金。` : '貸款期數以「月」計，例如 30 年＝360 期。寬限期內只繳利息、不還本金。';
@@ -689,16 +705,10 @@ function syncRateInterest(){
                           : `實質年利率 ${pct(rate)}｜平息年利率 ${pct(flat)}｜利息總額 ${fmt(I)}`;
 }
 function recomputeDefaultPaid(){
-  if (!isCashForm() && !editingId){
-    const d = formDebt();
-    if (d.principal>0 && d.totalMonths>0 && d.firstPayDate){
-      const t = todayStr();
-      currentPaid = computeSchedule_(d).rows.filter(r=>r.date<=t).length;
-    }
-  }
   refreshPaid(); syncRateInterest();
 }
 
+$('paidManual').addEventListener('change', ()=>{ if ($('paidManual').checked) currentPaid = autoPaidCount(formDebt()); refreshPaid(); });
 $('paidMinus').onclick = ()=>{ currentPaid--; refreshPaid(); };
 $('paidPlus').onclick = ()=>{ currentPaid++; refreshPaid(); };
 $('d_rate').addEventListener('input', ()=>{ rateSource='rate'; syncRateInterest(); });
@@ -709,7 +719,7 @@ $('d_method').addEventListener('change', ()=>{ applyMethodUI(); recomputeDefault
 function openAdd(){
   editingId=null; rateSource='rate'; $('debtModalTitle').textContent='新增債務'; $('debtForm').reset();
   $('d_method').value='annuity'; $('d_grace').value=0; $('d_first').value=addMonthsStr_(todayStr(),1);
-  currentPaid=0; applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
+  currentPaid=0; $('paidManual').checked=false; applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
 }
 function openEdit(id){
   const d = debts.find(x=>x.id===id); if(!d) return;
@@ -720,7 +730,9 @@ function openEdit(id){
   $('d_rate').value = d.annualRate>0 ? d.annualRate : '';
   $('d_interest').value = (!(d.annualRate>0) && d.interestTotal>0) ? d.interestTotal : '';
   rateSource = $('d_interest').value!=='' ? 'interest' : 'rate';
-  currentPaid=d.paidCount; applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
+  const manual = d.paidCount!==null && d.paidCount!==undefined;
+  $('paidManual').checked = manual; currentPaid = manual ? d.paidCount : 0;
+  applyMethodUI(); refreshPaid(); syncRateInterest(); $('debtModalOverlay').classList.add('open');
 }
 const closeDebtModal = ()=>$('debtModalOverlay').classList.remove('open');
 $('btnAdd').onclick = openAdd; $('debtCancel').onclick = closeDebtModal;
